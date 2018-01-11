@@ -19,8 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
@@ -28,6 +30,7 @@ import (
 
 var Series []string
 var Output string
+var Rotate bool
 
 const yuyuteiURL = "http://yuyu-tei.jp/"
 const yuyuteiBase = "http://yuyu-tei.jp/game_ws"
@@ -50,6 +53,11 @@ var getcardsCmd = &cobra.Command{
 	* card image `,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("getcards")
+		if Rotate {
+			var ext = filepath.Ext(Output)
+			var datestamp = strings.Split(time.Now().Format(time.RFC3339), "T")[0]
+			Output = fmt.Sprint(strings.TrimSuffix(Output, ext), "-", datestamp, ext)
+		}
 		out, err := os.Create(Output)
 		var buffer bytes.Buffer
 		defer out.Close()
@@ -110,4 +118,5 @@ func init() {
 	var outputDefault = "yyt_infos.json"
 	getcardsCmd.Flags().StringArrayVarP(&Series, "series", "s", []string{}, "Default fetch all series")
 	getcardsCmd.Flags().StringVarP(&Output, "output", "o", outputDefault, "Specify output path")
+	getcardsCmd.Flags().BoolVarP(&Rotate, "rotate", "r", false, "Do you want to rotate (add datetime) to output filename")
 }
