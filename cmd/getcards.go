@@ -48,7 +48,7 @@ var getcardsCmd = &cobra.Command{
 			fmt.Printf(err.Error())
 		}
 		defer out.Close()
-		mylib.GetCards(out)
+		mylib.GetCards(*out, Series)
 	},
 }
 
