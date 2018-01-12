@@ -23,25 +23,35 @@ type card struct {
 	Price       int
 }
 
+func buildMap(cardS *goquery.Selection) (string, card) {
+	var price string
+	cardID := strings.TrimSpace(cardS.Find(".id").Text())
+	price = cardS.Find(".price .sale").Text()
+	if price == "" {
+		price = strings.TrimSpace(cardS.Find(".price").Text())
+	}
+	cardPrice, errAtoi := strconv.Atoi(strings.TrimSuffix(price, "円"))
+	if errAtoi != nil {
+		fmt.Println(errAtoi)
+	}
+	cardURL, _ := cardS.Find(".image img").Attr("src")
+	cardURL = strings.Replace(cardURL, "90_126", "front", 1)
+	yytInfo := card{URL: cardURL, Price: cardPrice, ID: cardID}
+	return cardID, yytInfo
+}
+
 func fetchCards(url string, cardMap map[string]card) map[string]card {
-	// cardMap := map[string]card{}
 	fmt.Println(url)
 	images, errCard := goquery.NewDocument(url)
-	images.Find(".card_unit").Each(func(cardI int, cardS *goquery.Selection) {
-		var price string
-		price = cardS.Find(".price .sale").Text()
-		if price == "" {
-			price = strings.TrimSpace(cardS.Find(".price").Text())
-		}
-		cardPrice, errAtoi := strconv.Atoi(strings.TrimSuffix(price, "円"))
-		if errAtoi != nil {
-			fmt.Println(errAtoi)
-		}
-		cardURL, _ := cardS.Find(".image img").Attr("src")
-		cardURL = strings.Replace(cardURL, "90_126", "front", 1)
-		cardID := strings.TrimSpace(cardS.Find(".id").Text())
-		yytInfo := card{URL: cardURL, Price: cardPrice, ID: cardID}
-		cardMap[cardID] = yytInfo
+	// fetch normal cards
+	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardS *goquery.Selection) {
+		k, v := buildMap(cardS)
+		cardMap[k] = v
+	})
+	// fetch EB foil cards
+	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardS *goquery.Selection) {
+		k, v := buildMap(cardS)
+		cardMap[strings.Join([]string{k, "F"}, "")] = v
 	})
 	if errCard != nil {
 		fmt.Println(errCard)
