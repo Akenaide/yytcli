@@ -11,7 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const yuyuteiURL = "http://yuyu-tei.jp/"
+const yuyuteiURL = "http://yuyu-tei.jp"
 const yuyuteiBase = "http://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
 
@@ -35,7 +35,7 @@ func buildMap(cardS *goquery.Selection) (string, card) {
 		fmt.Println(errAtoi)
 	}
 	cardURL, _ := cardS.Find(".image img").Attr("src")
-	cardURL = strings.Replace(cardURL, "90_126", "front", 1)
+	cardURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(cardURL, "90_126", "front", 1))
 	yytInfo := card{URL: cardURL, Price: cardPrice, ID: cardID}
 	return cardID, yytInfo
 }
