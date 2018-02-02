@@ -1,10 +1,7 @@
 package lib
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -60,10 +57,9 @@ func fetchCards(url string, cardMap map[string]card) map[string]card {
 }
 
 // GetCards function
-func GetCards(out os.File, series []string) {
+func GetCards(series []string) map[string]card {
 	// Get cards
 	fmt.Println("getcards")
-	var buffer bytes.Buffer
 	cardMap := map[string]card{}
 	if len(series) == 0 {
 		filter := "ul[data-class=sell] .item_single_card .nav_list_second .nav_list_third a"
@@ -84,11 +80,5 @@ func GetCards(out os.File, series []string) {
 		}
 	}
 
-	b, errMarshal := json.Marshal(cardMap)
-	if errMarshal != nil {
-		fmt.Println(errMarshal)
-	}
-	json.Indent(&buffer, b, "", "\t")
-	buffer.WriteTo(&out)
-	fmt.Println("finish")
+	return cardMap
 }

@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +40,7 @@ var getcardsCmd = &cobra.Command{
 	* card price
 	* card image `,
 	Run: func(cmd *cobra.Command, args []string) {
+		var buffer bytes.Buffer
 		if Rotate {
 			var ext = filepath.Ext(Output)
 			var datestamp = strings.Split(time.Now().Format(time.RFC3339), "T")[0]
@@ -48,7 +51,14 @@ var getcardsCmd = &cobra.Command{
 			fmt.Printf(err.Error())
 		}
 		defer out.Close()
-		mylib.GetCards(*out, Series)
+		cardMap := mylib.GetCards(Series)
+		b, errMarshal := json.Marshal(cardMap)
+		if errMarshal != nil {
+			fmt.Println(errMarshal)
+		}
+		json.Indent(&buffer, b, "", "\t")
+		buffer.WriteTo(out)
+		fmt.Println("finish")
 	},
 }
 
