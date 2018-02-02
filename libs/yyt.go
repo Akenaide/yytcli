@@ -18,9 +18,10 @@ type card struct {
 	Amount      int
 	URL         string
 	Price       int
+	YytSetCode  string
 }
 
-func buildMap(cardS *goquery.Selection) (string, card) {
+func buildMap(cardS *goquery.Selection, yytSetCode string) (string, card) {
 	var price string
 	cardID := strings.TrimSpace(cardS.Find(".id").Text())
 	price = cardS.Find(".price .sale").Text()
@@ -33,21 +34,27 @@ func buildMap(cardS *goquery.Selection) (string, card) {
 	}
 	cardURL, _ := cardS.Find(".image img").Attr("src")
 	cardURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(cardURL, "90_126", "front", 1))
-	yytInfo := card{URL: cardURL, Price: cardPrice, ID: cardID}
+	yytInfo := card{
+		URL:        cardURL,
+		Price:      cardPrice,
+		ID:         cardID,
+		YytSetCode: yytSetCode,
+	}
 	return cardID, yytInfo
 }
 
 func fetchCards(url string, cardMap map[string]card) map[string]card {
 	fmt.Println(url)
 	images, errCard := goquery.NewDocument(url)
+	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardS *goquery.Selection) {
-		k, v := buildMap(cardS)
+		k, v := buildMap(cardS, yytSetCode)
 		cardMap[k] = v
 	})
 	// fetch EB foil cards
 	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardS *goquery.Selection) {
-		k, v := buildMap(cardS)
+		k, v := buildMap(cardS, yytSetCode)
 		cardMap[strings.Join([]string{k, "F"}, "")] = v
 	})
 	if errCard != nil {
