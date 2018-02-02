@@ -19,26 +19,30 @@ type Card struct {
 	URL         string
 	Price       int
 	YytSetCode  string
+	Rarity      string
 }
 
-func buildMap(cardS *goquery.Selection, yytSetCode string) (string, Card) {
+func buildMap(cardLi *goquery.Selection, yytSetCode string) (string, Card) {
 	var price string
-	cardID := strings.TrimSpace(cardS.Find(".id").Text())
-	price = cardS.Find(".price .sale").Text()
+	cardLi.ToggleClass("card_unit")
+	rarity := strings.TrimLeft(cardLi.AttrOr("class", "rarity_Unknow"), "rarity_")
+	cardID := strings.TrimSpace(cardLi.Find(".id").Text())
+	price = cardLi.Find(".price .sale").Text()
 	if price == "" {
-		price = strings.TrimSpace(cardS.Find(".price").Text())
+		price = strings.TrimSpace(cardLi.Find(".price").Text())
 	}
 	cardPrice, errAtoi := strconv.Atoi(strings.TrimSuffix(price, "円"))
 	if errAtoi != nil {
 		fmt.Println(errAtoi)
 	}
-	cardURL, _ := cardS.Find(".image img").Attr("src")
+	cardURL, _ := cardLi.Find(".image img").Attr("src")
 	cardURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(cardURL, "90_126", "front", 1))
 	yytInfo := Card{
 		URL:        cardURL,
 		Price:      cardPrice,
 		ID:         cardID,
 		YytSetCode: yytSetCode,
+		Rarity:     rarity,
 	}
 	return cardID, yytInfo
 }
@@ -48,13 +52,13 @@ func fetchCards(url string, cardMap map[string]Card) map[string]Card {
 	images, errCard := goquery.NewDocument(url)
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
-	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardS *goquery.Selection) {
-		k, v := buildMap(cardS, yytSetCode)
+	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
+		k, v := buildMap(cardLi, yytSetCode)
 		cardMap[k] = v
 	})
 	// fetch EB foil cards
-	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardS *goquery.Selection) {
-		k, v := buildMap(cardS, yytSetCode)
+	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardLi *goquery.Selection) {
+		k, v := buildMap(cardLi, yytSetCode)
 		cardMap[strings.Join([]string{k, "F"}, "")] = v
 	})
 	if errCard != nil {
