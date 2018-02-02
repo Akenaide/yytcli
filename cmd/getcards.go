@@ -27,7 +27,6 @@ import (
 	mylib "gogs.ded.eelon.moe/kms/yytcli/libs"
 )
 
-var Series []string
 var Output string
 var Rotate bool
 
@@ -74,7 +73,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	var outputDefault = "yyt_infos.json"
-	getcardsCmd.Flags().StringArrayVarP(&Series, "series", "s", []string{}, "Default fetch all series")
 	getcardsCmd.Flags().StringVarP(&Output, "output", "o", outputDefault, "Specify output path")
 	getcardsCmd.Flags().BoolVarP(&Rotate, "rotate", "r", false, "Do you want to rotate (add datetime) to output filename")
 }
