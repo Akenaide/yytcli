@@ -8,8 +8,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const yuyuteiURL = "http://yuyu-tei.jp"
-const yuyuteiBase = "http://yuyu-tei.jp/game_ws"
+const yuyuteiURL = "https://yuyu-tei.jp"
+const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
 
 type Card struct {
@@ -20,6 +20,7 @@ type Card struct {
 	Price       int
 	YytSetCode  string
 	Rarity      string
+	CardURL     string
 }
 
 func buildMap(cardLi *goquery.Selection, yytSetCode string) (string, Card) {
@@ -28,21 +29,26 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) (string, Card) {
 	rarity := strings.TrimLeft(cardLi.AttrOr("class", "rarity_Unknow"), "rarity_")
 	cardID := strings.TrimSpace(cardLi.Find(".id").Text())
 	price = cardLi.Find(".price .sale").Text()
+	cardURL := fmt.Sprintf("%v%s", yuyuteiURL, cardLi.Find(".image_box a").AttrOr("href", "undefined"))
+
 	if price == "" {
 		price = strings.TrimSpace(cardLi.Find(".price").Text())
 	}
 	cardPrice, errAtoi := strconv.Atoi(strings.TrimSuffix(price, "円"))
+
 	if errAtoi != nil {
 		fmt.Println(errAtoi)
 	}
-	cardURL, _ := cardLi.Find(".image img").Attr("src")
-	cardURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(cardURL, "90_126", "front", 1))
+
+	imageURL, _ := cardLi.Find(".image img").Attr("src")
+	imageURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(imageURL, "90_126", "front", 1))
 	yytInfo := Card{
-		URL:        cardURL,
+		URL:        imageURL,
 		Price:      cardPrice,
 		ID:         cardID,
 		YytSetCode: yytSetCode,
 		Rarity:     rarity,
+		CardURL:    cardURL,
 	}
 	return cardID, yytInfo
 }
