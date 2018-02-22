@@ -8,6 +8,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const maxLength = 2
 const yuyuteiURL = "https://yuyu-tei.jp"
 const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
@@ -77,6 +78,7 @@ func fetchCards(url string, cardMap map[string]Card) map[string]Card {
 func GetCards(series []string) map[string]Card {
 	// Get cards
 	fmt.Println("getcards")
+	fetchChannel := make(chan bool, maxLength)
 	cardMap := map[string]Card{}
 	if len(series) == 0 {
 		filter := "ul[data-class=sell] .item_single_card .nav_list_second .nav_list_third a"
@@ -88,13 +90,24 @@ func GetCards(series []string) map[string]Card {
 		doc.Find(filter).Each(func(i int, s *goquery.Selection) {
 			url, has := s.Attr("href")
 			if has {
-				fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), cardMap)
+				fetchChannel <- true
+				go func(url string) {
+					defer func() { <-fetchChannel }()
+					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), cardMap)
+				}(url)
 			}
 		})
 	} else {
-		for _, serie := range series {
-			fetchCards(strings.Join([]string{yuyuteiPart, serie}, ""), cardMap)
+		for _, url := range series {
+			fetchChannel <- true
+			go func(url string) {
+				defer func() { <-fetchChannel }()
+				fetchCards(strings.Join([]string{yuyuteiPart, url}, ""), cardMap)
+			}(url)
 		}
+	}
+	for i := 0; i < cap(fetchChannel); i++ {
+		fetchChannel <- true
 	}
 
 	return cardMap
