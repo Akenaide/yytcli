@@ -22,9 +22,10 @@ type Card struct {
 	YytSetCode  string
 	Rarity      string
 	CardURL     string
+	EBFoil      bool
 }
 
-func buildMap(cardLi *goquery.Selection, yytSetCode string) (string, Card) {
+func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 	var price string
 	cardLi.ToggleClass("card_unit")
 	rarity := strings.TrimLeft(cardLi.AttrOr("class", "rarity_Unknow"), "rarity_")
@@ -51,27 +52,27 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) (string, Card) {
 		Rarity:     rarity,
 		CardURL:    cardURL,
 	}
-	return cardID, yytInfo
+	return yytInfo
 }
 
-func fetchCards(url string, cardMap map[string]Card) map[string]Card {
+func fetchCards(url string, tmpCardChan chan Card) {
 	fmt.Println(url)
 	images, errCard := goquery.NewDocument(url)
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
-		k, v := buildMap(cardLi, yytSetCode)
-		cardMap[k] = v
+		v := buildMap(cardLi, yytSetCode)
+		tmpCardChan <- v
 	})
 	// fetch EB foil cards
 	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardLi *goquery.Selection) {
-		k, v := buildMap(cardLi, yytSetCode)
-		cardMap[strings.Join([]string{k, "F"}, "")] = v
+		v := buildMap(cardLi, yytSetCode)
+		v.EBFoil = true
+		tmpCardChan <- v
 	})
 	if errCard != nil {
 		fmt.Println(errCard)
 	}
-	return cardMap
 }
 
 // GetCards function
@@ -79,7 +80,22 @@ func GetCards(series []string) map[string]Card {
 	// Get cards
 	fmt.Println("getcards")
 	fetchChannel := make(chan bool, maxLength)
+	tmpCardChan := make(chan Card, 10)
 	cardMap := map[string]Card{}
+	go func() {
+		for {
+			select {
+			case card := <-tmpCardChan:
+				var cardID = ""
+				if card.EBFoil {
+					cardID = card.ID + "F"
+				} else {
+					cardID = card.ID
+				}
+				cardMap[cardID] = card
+			}
+		}
+	}()
 	if len(series) == 0 {
 		filter := "ul[data-class=sell] .item_single_card .nav_list_second .nav_list_third a"
 		doc, err := goquery.NewDocument(yuyuteiBase)
@@ -92,8 +108,8 @@ func GetCards(series []string) map[string]Card {
 			if has {
 				fetchChannel <- true
 				go func(url string) {
-					defer func() { <-fetchChannel }()
-					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), cardMap)
+					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), tmpCardChan)
+					<-fetchChannel
 				}(url)
 			}
 		})
@@ -101,13 +117,10 @@ func GetCards(series []string) map[string]Card {
 		for _, url := range series {
 			fetchChannel <- true
 			go func(url string) {
-				defer func() { <-fetchChannel }()
-				fetchCards(strings.Join([]string{yuyuteiPart, url}, ""), cardMap)
+				fetchCards(strings.Join([]string{yuyuteiPart, url}, ""), tmpCardChan)
+				<-fetchChannel
 			}(url)
 		}
-	}
-	for i := 0; i < cap(fetchChannel); i++ {
-		fetchChannel <- true
 	}
 
 	return cardMap
