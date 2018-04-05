@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -82,6 +83,7 @@ func GetCards(series []string) map[string]Card {
 	fetchChannel := make(chan bool, maxLength)
 	tmpCardChan := make(chan Card, 10)
 	cardMap := map[string]Card{}
+	var wg sync.WaitGroup
 	go func() {
 		for {
 			select {
@@ -107,21 +109,26 @@ func GetCards(series []string) map[string]Card {
 			url, has := s.Attr("href")
 			if has {
 				fetchChannel <- true
+				wg.Add(1)
 				go func(url string) {
 					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), tmpCardChan)
 					<-fetchChannel
+					wg.Done()
 				}(url)
 			}
 		})
 	} else {
 		for _, url := range series {
+			wg.Add(1)
 			fetchChannel <- true
 			go func(url string) {
 				fetchCards(strings.Join([]string{yuyuteiPart, url}, ""), tmpCardChan)
 				<-fetchChannel
+				wg.Done()
 			}(url)
 		}
 	}
 
+	wg.Wait()
 	return cardMap
 }
