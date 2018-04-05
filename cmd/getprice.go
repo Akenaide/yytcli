@@ -21,7 +21,7 @@ import (
 	mylib "gogs.ded.eelon.moe/kms/yytcli/libs"
 )
 
-var goodRarity = []string{"RR", "R", "U", "C"}
+var goodRarity = []string{"RR", "R", "U", "C", "CC", "CR"}
 
 // getpriceCmd represents the getprice command
 var getpriceCmd = &cobra.Command{
