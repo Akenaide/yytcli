@@ -1,6 +1,6 @@
 package main
 
-import "gogs.ded.eelon.moe/kms/yytcli/cmd"
+import "github.com/Akenaide/yytcli/cmd"
 
 func main() {
 	cmd.Execute()
