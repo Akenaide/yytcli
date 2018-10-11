@@ -5,7 +5,7 @@ go:
   - "1.10.x"
 
 install:
-  - go get -insecure
+  - go get -insecure -t -v ./...
 
 script:
   - go test
