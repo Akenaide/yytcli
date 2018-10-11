@@ -14,6 +14,11 @@ const yuyuteiURL = "https://yuyu-tei.jp"
 const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
 
+type waitCard struct {
+	Card Card
+	Wg   *sync.WaitGroup
+}
+
 type Card struct {
 	ID          string
 	Translation string
@@ -56,24 +61,28 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 	return yytInfo
 }
 
-func fetchCards(url string, tmpCardChan chan Card) {
+func fetchCards(url string, tmpCardChan chan waitCard) {
+	var wg sync.WaitGroup
 	fmt.Println(url)
 	images, errCard := goquery.NewDocument(url)
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
+		wg.Add(1)
 		v := buildMap(cardLi, yytSetCode)
-		tmpCardChan <- v
+		tmpCardChan <- waitCard{Card: v, Wg: &wg}
 	})
 	// fetch EB foil cards
 	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardLi *goquery.Selection) {
+		wg.Add(1)
 		v := buildMap(cardLi, yytSetCode)
 		v.EBFoil = true
-		tmpCardChan <- v
+		tmpCardChan <- waitCard{Card: v, Wg: &wg}
 	})
 	if errCard != nil {
 		fmt.Println(errCard)
 	}
+	wg.Wait()
 }
 
 // GetCards function
@@ -81,23 +90,26 @@ func GetCards(series []string) map[string]Card {
 	// Get cards
 	fmt.Println("getcards")
 	fetchChannel := make(chan bool, maxLength)
-	tmpCardChan := make(chan Card, 10)
+	tmpCardChan := make(chan waitCard, 10)
 	cardMap := map[string]Card{}
 	var wg sync.WaitGroup
+
 	go func() {
 		for {
 			select {
-			case card := <-tmpCardChan:
+			case waitCardS := <-tmpCardChan:
 				var cardID = ""
-				if card.EBFoil {
-					cardID = card.ID + "F"
+				if waitCardS.Card.EBFoil {
+					cardID = waitCardS.Card.ID + "F"
 				} else {
-					cardID = card.ID
+					cardID = waitCardS.Card.ID
 				}
-				cardMap[cardID] = card
+				cardMap[cardID] = waitCardS.Card
+				waitCardS.Wg.Done()
 			}
 		}
 	}()
+
 	if len(series) == 0 {
 		filter := "ul[data-class=sell] .item_single_card .nav_list_second .nav_list_third a"
 		doc, err := goquery.NewDocument(yuyuteiBase)
