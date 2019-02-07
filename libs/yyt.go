@@ -20,15 +20,28 @@ type waitCard struct {
 }
 
 type Card struct {
-	ID          string
-	Translation string
 	Amount      int
-	URL         string
-	Price       int
-	YytSetCode  string
-	Rarity      string
 	CardURL     string
 	EBFoil      bool
+	ID          string
+	Price       int
+	Rarity      string
+	Stock       int
+	Translation string
+	URL         string
+	YytSetCode  string
+}
+
+func getStock(stockString string) (int, error) {
+	stock := strings.Split(stockString, "：")[1]
+	switch stock {
+	case "×":
+		return 0, nil
+	case "◯":
+		return 99, nil
+	default:
+		return strconv.Atoi(stock)
+	}
 }
 
 func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
@@ -48,6 +61,12 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 		fmt.Println(errAtoi)
 	}
 
+	stock, stockErr := getStock(cardLi.Find(".stock").Text())
+
+	if stockErr != nil {
+		fmt.Println(stockErr)
+	}
+
 	imageURL, _ := cardLi.Find(".image img").Attr("src")
 	imageURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(imageURL, "90_126", "front", 1))
 	yytInfo := Card{
@@ -57,6 +76,7 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 		YytSetCode: yytSetCode,
 		Rarity:     rarity,
 		CardURL:    cardURL,
+		Stock:      stock,
 	}
 	return yytInfo
 }
