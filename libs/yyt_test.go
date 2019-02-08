@@ -7,7 +7,7 @@ import (
 const NbCard = 117
 
 func TestImport(t *testing.T) {
-	cardMap := GetCards([]string{"tmhmovie"})
+	cardMap := GetCards([]string{"tmhmovie"}, false)
 	if len(cardMap) != NbCard {
 		t.Errorf("Errors in parsing expected %d but got %d", NbCard, len(cardMap))
 	}

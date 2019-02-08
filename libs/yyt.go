@@ -85,6 +85,9 @@ func fetchCards(url string, tmpCardChan chan waitCard) {
 	var wg sync.WaitGroup
 	fmt.Println(url)
 	images, errCard := goquery.NewDocument(url)
+	if errCard != nil {
+		fmt.Println(errCard)
+	}
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
@@ -99,14 +102,11 @@ func fetchCards(url string, tmpCardChan chan waitCard) {
 		v.EBFoil = true
 		tmpCardChan <- waitCard{Card: v, Wg: &wg}
 	})
-	if errCard != nil {
-		fmt.Println(errCard)
-	}
 	wg.Wait()
 }
 
 // GetCards function
-func GetCards(series []string) map[string]Card {
+func GetCards(series []string, kizu bool) map[string]Card {
 	// Get cards
 	fmt.Println("getcards")
 	fetchChannel := make(chan bool, maxLength)
@@ -139,6 +139,9 @@ func GetCards(series []string) map[string]Card {
 		}
 		doc.Find(filter).Each(func(i int, s *goquery.Selection) {
 			url, has := s.Attr("href")
+			if kizu {
+				url = url + "&kizu=1"
+			}
 			if has {
 				fetchChannel <- true
 				wg.Add(1)
@@ -151,6 +154,9 @@ func GetCards(series []string) map[string]Card {
 		})
 	} else {
 		for _, url := range series {
+			if kizu {
+				url = url + "&kizu=1"
+			}
 			wg.Add(1)
 			fetchChannel <- true
 			go func(url string) {

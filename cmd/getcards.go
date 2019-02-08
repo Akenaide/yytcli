@@ -50,7 +50,7 @@ var getcardsCmd = &cobra.Command{
 			fmt.Printf(err.Error())
 		}
 		defer out.Close()
-		cardMap := mylib.GetCards(Series)
+		cardMap := mylib.GetCards(Series, Kizu)
 		b, errMarshal := json.Marshal(cardMap)
 		if errMarshal != nil {
 			fmt.Println(errMarshal)

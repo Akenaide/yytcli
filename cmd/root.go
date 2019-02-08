@@ -25,6 +25,7 @@ import (
 
 var cfgFile string
 var Series []string
+var Kizu bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -58,6 +59,7 @@ func init() {
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ycli.yaml)")
 	rootCmd.PersistentFlags().StringArrayVarP(&Series, "series", "s", []string{}, "Default fetch all series")
+	rootCmd.PersistentFlags().BoolVarP(&Kizu, "kizu", "k", false, "Get only damaged informations")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

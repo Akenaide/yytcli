@@ -32,7 +32,7 @@ var getpriceCmd = &cobra.Command{
 		fmt.Println("getprice called")
 		for _, serie := range Series {
 			var price = 0
-			cardMap := mylib.GetCards([]string{serie})
+			cardMap := mylib.GetCards([]string{serie}, Kizu)
 			for _, infos := range cardMap {
 				for _, rarity := range goodRarity {
 					if rarity == infos.Rarity {
