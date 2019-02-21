@@ -12,18 +12,18 @@ You can use it to create a snapshot of today price with:
           
   to get a playset price
 
-Usage:
+## Usage:
   yytcli [command]
 
-Available Commands:
+## Available Commands:
 
-  getcards    get card infos from yyt
+  **getcards**    get card infos from yyt
   
-  getprice    get playset price (RR, R, U, C, CC, CR)
+  **getprice**    get playset price (RR, R, U, C, CC, CR)
   
-  help        Help about any command
+  **help**        Help about any command
 
-Flags:
+## Flags:
 
   --config string        config file (default is $HOME/.ycli.yaml)
       
