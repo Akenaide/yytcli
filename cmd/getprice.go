@@ -26,7 +26,7 @@ var goodRarity = []string{"RR", "R", "U", "C", "CC", "CR"}
 // getpriceCmd represents the getprice command
 var getpriceCmd = &cobra.Command{
 	Use:   "getprice",
-	Short: "A brief description of your command",
+	Short: "get playset price (RR, R, U, C, CC, CR)",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("getprice called")

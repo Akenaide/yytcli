@@ -29,14 +29,16 @@ var Kizu bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "ycli",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Use:   "yytcli",
+	Short: "Crawl yuyutei website to get WS cards informations",
+	Long: `yytcli fetch WS cards informations from yuyutei website.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	You can use it to create a snapshot of today price with:
+	  'yytcli getcards'
+	or
+	  'yytcli getprice'
+	to get a playset price
+	`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
