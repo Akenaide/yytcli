@@ -2,7 +2,10 @@ package lib
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -12,11 +15,19 @@ import (
 const freeProxy = "https://free-proxy-list.net/"
 
 // GetClient return client with proxy
-func GetClient() {
+func GetClient() (*http.Client, error) {
 
-	// proxyUrl, err := url.Parse("http://proxyIp:proxyPort")
-	// myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
+	proxies, err := getProxy()
 
+	if err != nil {
+		log.Println("Error in getProxy")
+	}
+
+	infos := proxies[rand.Intn(len(proxies))]
+	proxyURL, err := url.Parse(fmt.Sprintf("https://%v", infos))
+	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	return myClient, nil
 }
 
 func getProxy() ([]string, error) {
