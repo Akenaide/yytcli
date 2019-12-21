@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +58,7 @@ var getcardsCmd = &cobra.Command{
 		}
 		json.Indent(&buffer, b, "", "\t")
 		buffer.WriteTo(out)
-		fmt.Println("finish")
+		log.Println("finish")
 	},
 }
 

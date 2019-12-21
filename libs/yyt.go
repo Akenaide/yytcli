@@ -2,6 +2,8 @@ package lib
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -9,7 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const maxLength = 2
+const maxLength = 12
 const yuyuteiURL = "https://yuyu-tei.jp"
 const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
@@ -83,10 +85,34 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 
 func fetchCards(url string, tmpCardChan chan waitCard) {
 	var wg sync.WaitGroup
+	var resp *http.Response
+	var errHTTP error
+	gotData := false
 	fmt.Println(url)
-	images, errCard := goquery.NewDocument(url)
+
+	for {
+		if gotData {
+			break
+		}
+		proxy, errClient := GetClient()
+		if errClient != nil {
+			log.Printf(errClient.Error())
+			continue
+		}
+		resp, errHTTP = proxy.Client.Get(url)
+		if errHTTP != nil {
+			log.Printf(errHTTP.Error())
+			proxy.Ban()
+			continue
+		}
+		gotData = true
+	}
+
+	images, errCard := goquery.NewDocumentFromReader(resp.Body)
 	if errCard != nil {
-		fmt.Println(errCard)
+		log.Println(errCard)
+		log.Printf("FAIL for %v", url)
+		return
 	}
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
@@ -138,11 +164,15 @@ func GetCards(series []string, kizu bool) map[string]Card {
 			fmt.Println("Error in get yyt urls")
 		}
 		doc.Find(filter).Each(func(i int, s *goquery.Selection) {
+			if i > 50 {
+				return
+			}
 			url, has := s.Attr("href")
 			if kizu {
 				url = url + "&kizu=1"
 			}
 			if has {
+				log.Printf("Nb %v", i)
 				fetchChannel <- true
 				wg.Add(1)
 				go func(url string) {
@@ -167,6 +197,8 @@ func GetCards(series []string, kizu bool) map[string]Card {
 		}
 	}
 
+	log.Printf("Wait")
 	wg.Wait()
+	log.Printf("Finish get")
 	return cardMap
 }

@@ -7,27 +7,68 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 // freeProxy Url
 const freeProxy = "https://free-proxy-list.net/"
+const bin = "https://www.google.com/"
+
+// SkipProxies contains not working proxies rip
+var SkipProxies = []string{}
+
+// Proxy handle proxy things
+type Proxy struct {
+	Info   string
+	Client *http.Client
+}
+
+func (p *Proxy) Ban() {
+	log.Printf("Ban %v", p.Info)
+	SkipProxies = append(SkipProxies, p.Info)
+}
 
 // GetClient return client with proxy
-func GetClient() (*http.Client, error) {
-
+func GetClient() (*Proxy, error) {
+	rand.Seed(time.Now().Unix())
+	proxy := Proxy{}
 	proxies, err := getProxy()
 
 	if err != nil {
 		log.Println("Error in getProxy")
 	}
 
-	infos := proxies[rand.Intn(len(proxies))]
-	proxyURL, err := url.Parse(fmt.Sprintf("https://%v", infos))
-	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+	for {
+		blackListed := false
+		proxy.Info = proxies[rand.Intn(len(proxies))]
 
-	return myClient, nil
+		for _, val := range SkipProxies {
+			if proxy.Info == val {
+				blackListed = true
+				break
+			}
+		}
+		if blackListed {
+			continue
+		}
+		proxyURL, err := url.Parse(fmt.Sprintf("http://%v", proxy.Info))
+		if err != nil {
+			log.Println("Error in parse")
+		}
+		proxy.Client = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+		_, errHTTP := proxy.Client.Get(bin)
+		if errHTTP != nil {
+			proxy.Ban()
+			continue
+		}
+		// log.Printf(proxyURL.String())
+		break
+	}
+
+	return &proxy, nil
 }
 
 func getProxy() ([]string, error) {
