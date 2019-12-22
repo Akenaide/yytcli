@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,77 +18,89 @@ const bin = "https://www.google.com/"
 // SkipProxies contains not working proxies rip
 var SkipProxies = []string{}
 
+var availableProxies = make(chan *Proxy, 200)
+var banProxy = make(chan string)
+
 // Proxy handle proxy things
 type Proxy struct {
 	Info   string
 	Client *http.Client
 }
 
+// Readd good proxy
+func (p *Proxy) Readd() {
+	availableProxies <- p
+}
+
+// Ban proxy
 func (p *Proxy) Ban() {
-	log.Printf("Ban %v", p.Info)
-	SkipProxies = append(SkipProxies, p.Info)
+	// log.Printf("Ban %v", p.Info)
+	banProxy <- p.Info
+}
+
+// ProxyStart start channels
+func ProxyStart() {
+	ticker := time.NewTicker(3 * time.Minute)
+	go getProxy()
+
+	go func() {
+		for {
+			select {
+			case skip := <-banProxy:
+				SkipProxies = append(SkipProxies, skip)
+			case <-ticker.C:
+				go getProxy()
+			}
+		}
+	}()
 }
 
 // GetClient return client with proxy
-func GetClient() (*Proxy, error) {
-	rand.Seed(time.Now().Unix())
-	proxy := Proxy{}
-	proxies, err := getProxy()
-
-	if err != nil {
-		log.Println("Error in getProxy")
-	}
-
-	for {
-		blackListed := false
-		proxy.Info = proxies[rand.Intn(len(proxies))]
-
-		for _, val := range SkipProxies {
-			if proxy.Info == val {
-				blackListed = true
-				break
-			}
-		}
-		if blackListed {
-			continue
-		}
-		proxyURL, err := url.Parse(fmt.Sprintf("http://%v", proxy.Info))
-		if err != nil {
-			log.Println("Error in parse")
-		}
-		proxy.Client = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
-
-		_, errHTTP := proxy.Client.Get(bin)
-		if errHTTP != nil {
-			proxy.Ban()
-			continue
-		}
-		// log.Printf(proxyURL.String())
-		break
-	}
-
-	return &proxy, nil
+func GetClient() *Proxy {
+	return <-availableProxies
 }
 
-func getProxy() ([]string, error) {
+func getProxy() {
+	log.Printf("Get new proxies")
 	response, errGet := http.Get(freeProxy)
-	var res []string
 	if errGet != nil {
 		fmt.Println("Error on get proxy")
-		return nil, errGet
+		return
 	}
 
 	query, errParse := goquery.NewDocumentFromReader(response.Body)
 	if errParse != nil {
-		return nil, errParse
+		return
 	}
 
 	query.Find("table tr").Each(func(_ int, proxyLi *goquery.Selection) {
 		if strings.Contains(proxyLi.Text(), "elite proxy") {
 			ip := proxyLi.Children().First()
-			res = append(res, fmt.Sprintf("%v:%v", ip.Text(), ip.Next().Text()))
+			res := fmt.Sprintf("%v:%v", ip.Text(), ip.Next().Text())
+
+			for _, val := range SkipProxies {
+				if res == val {
+					return
+				}
+			}
+			go basicTestProxy(res)
 		}
 	})
+}
 
-	return res, nil
+func basicTestProxy(p string) {
+	proxy := Proxy{Info: p}
+	proxyURL, err := url.Parse(fmt.Sprintf("http://%v", proxy.Info))
+	if err != nil {
+		log.Println("Error in parse url")
+	}
+	proxy.Client = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+
+	_, errHTTP := proxy.Client.Get(bin)
+	if errHTTP != nil {
+		proxy.Ban()
+		return
+	}
+	// log.Println("Good proxy", proxy.Info)
+	availableProxies <- &proxy
 }

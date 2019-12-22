@@ -3,7 +3,7 @@ package lib
 import (
 	"fmt"
 	"log"
-	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,10 +11,11 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const maxLength = 12
+const maxLength = 15
 const yuyuteiURL = "https://yuyu-tei.jp"
 const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
+const yytMenu = "entry"
 
 type waitCard struct {
 	Card Card
@@ -85,35 +86,32 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 
 func fetchCards(url string, tmpCardChan chan waitCard) {
 	var wg sync.WaitGroup
-	var resp *http.Response
-	var errHTTP error
-	gotData := false
-	fmt.Println(url)
+	var images *goquery.Document
+	var errCard error
 
 	for {
-		if gotData {
-			break
-		}
-		proxy, errClient := GetClient()
-		if errClient != nil {
-			log.Printf(errClient.Error())
-			continue
-		}
-		resp, errHTTP = proxy.Client.Get(url)
+		log.Println(" -- Begin", url)
+		proxy := GetClient()
+		resp, errHTTP := proxy.Client.Get(url)
 		if errHTTP != nil {
-			log.Printf(errHTTP.Error())
+			// log.Printf(errHTTP.Error())
 			proxy.Ban()
 			continue
 		}
-		gotData = true
+		images, errCard = goquery.NewDocumentFromReader(resp.Body)
+		if errCard != nil {
+			// log.Println(errCard)
+			// log.Printf("RETRY for %v", url)
+			proxy.Ban()
+			continue
+		}
+		go func() {
+			proxy.Readd()
+		}()
+		break
 	}
 
-	images, errCard := goquery.NewDocumentFromReader(resp.Body)
-	if errCard != nil {
-		log.Println(errCard)
-		log.Printf("FAIL for %v", url)
-		return
-	}
+	log.Println(url)
 	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
@@ -140,6 +138,8 @@ func GetCards(series []string, kizu bool) map[string]Card {
 	cardMap := map[string]Card{}
 	var wg sync.WaitGroup
 
+	ProxyStart()
+
 	go func() {
 		for {
 			select {
@@ -164,22 +164,23 @@ func GetCards(series []string, kizu bool) map[string]Card {
 			fmt.Println("Error in get yyt urls")
 		}
 		doc.Find(filter).Each(func(i int, s *goquery.Selection) {
-			if i > 50 {
-				return
-			}
-			url, has := s.Attr("href")
+			urlSet, has := s.Attr("href")
 			if kizu {
-				url = url + "&kizu=1"
+				urlSet = urlSet + "&kizu=1"
 			}
 			if has {
-				log.Printf("Nb %v", i)
+				urlParsed, _ := url.Parse(urlSet)
+				if urlParsed.Query().Get("menu") != yytMenu {
+					return
+				}
+				log.Printf("Nb %v / %v", i, urlSet)
 				fetchChannel <- true
 				wg.Add(1)
 				go func(url string) {
 					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), tmpCardChan)
 					<-fetchChannel
 					wg.Done()
-				}(url)
+				}(urlSet)
 			}
 		})
 	} else {
