@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Akenaide/biri"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -91,7 +92,7 @@ func fetchCards(url string, tmpCardChan chan waitCard) {
 
 	for {
 		log.Println(" -- Begin", url)
-		proxy := GetClient()
+		proxy := biri.GetClient()
 		resp, errHTTP := proxy.Client.Get(url)
 		if errHTTP != nil {
 			// log.Printf(errHTTP.Error())
@@ -138,7 +139,7 @@ func GetCards(series []string, kizu bool) map[string]Card {
 	cardMap := map[string]Card{}
 	var wg sync.WaitGroup
 
-	ProxyStart()
+	biri.ProxyStart()
 
 	go func() {
 		for {
