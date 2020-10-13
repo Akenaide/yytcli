@@ -72,7 +72,7 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 	}
 
 	imageURL, _ := cardLi.Find(".image img").Attr("src")
-	imageURL = fmt.Sprintf("%v%v", yuyuteiURL, strings.Replace(imageURL, "90_126", "front", 1))
+	imageURL = strings.Replace(imageURL, "90_126", "front", 1)
 	yytInfo := Card{
 		URL:        imageURL,
 		Price:      cardPrice,
