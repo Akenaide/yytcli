@@ -16,7 +16,7 @@ const maxLength = 15
 const yuyuteiURL = "https://yuyu-tei.jp"
 const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
-const yytMenu = "entry"
+const yytMenu = "kana"
 
 type waitCard struct {
 	Card Card
@@ -158,22 +158,32 @@ func GetCards(series []string, kizu bool) map[string]Card {
 	}()
 
 	if len(series) == 0 {
-		filter := "ul[data-class=sell] .item_single_card .nav_list_second .nav_list_third a"
-		doc, err := goquery.NewDocument(yuyuteiBase)
+		filter := "ul[data-class=sell] .item_single_card .nav_list_second a"
+		var doc *goquery.Document
+		for {
+			proxy := biri.GetClient()
 
-		if err != nil {
-			fmt.Println("Error in get yyt urls")
+			resp, errHTTP := proxy.Client.Get(yuyuteiBase)
+			if errHTTP != nil {
+				continue
+			}
+
+			doc, _ = goquery.NewDocumentFromResponse(resp)
+			break
 		}
+
 		doc.Find(filter).Each(func(i int, s *goquery.Selection) {
 			urlSet, has := s.Attr("href")
 			if kizu {
 				urlSet = urlSet + "&kizu=1"
 			}
+
 			if has {
 				urlParsed, _ := url.Parse(urlSet)
 				if urlParsed.Query().Get("menu") != yytMenu {
 					return
 				}
+
 				log.Printf("Nb %v / %v", i, urlSet)
 				fetchChannel <- true
 				wg.Add(1)
