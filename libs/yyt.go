@@ -18,10 +18,7 @@ const yuyuteiBase = "https://yuyu-tei.jp/game_ws"
 const yuyuteiPart = "https://yuyu-tei.jp/game_ws/sell/sell_price.php?ver="
 const yytMenu = "kana"
 
-type waitCard struct {
-	Card Card
-	Wg   *sync.WaitGroup
-}
+var wg sync.WaitGroup
 
 type Card struct {
 	Amount      int
@@ -85,10 +82,11 @@ func buildMap(cardLi *goquery.Selection, yytSetCode string) Card {
 	return yytInfo
 }
 
-func fetchCards(url string, tmpCardChan chan waitCard) {
-	var wg sync.WaitGroup
+func fetchCards(url string, tmpCardChan chan Card) {
 	var images *goquery.Document
 	var errCard error
+	var yytSetCode string
+	numberOfCard := 0
 
 	for {
 		log.Println(" -- Begin", url)
@@ -99,35 +97,40 @@ func fetchCards(url string, tmpCardChan chan waitCard) {
 			proxy.Ban()
 			continue
 		}
-		images, errCard = goquery.NewDocumentFromReader(resp.Body)
+		images, errCard = goquery.NewDocumentFromResponse(resp)
 		if errCard != nil {
 			// log.Println(errCard)
 			// log.Printf("RETRY for %v", url)
 			proxy.Ban()
 			continue
 		}
-		go func() {
-			proxy.Readd()
-		}()
+
+		yytSetCode = images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
+		if yytSetCode == "undefined" {
+			continue
+		}
+
+		proxy.Readd()
 		break
 	}
 
-	log.Println(url)
-	yytSetCode := images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
+	// log.Println(url)
 	// fetch normal cards
 	images.Find("li:not([class*=rarity_S-]).card_unit").Each(func(cardI int, cardLi *goquery.Selection) {
 		wg.Add(1)
 		v := buildMap(cardLi, yytSetCode)
-		tmpCardChan <- waitCard{Card: v, Wg: &wg}
+		tmpCardChan <- v
+		numberOfCard = numberOfCard + 1
 	})
 	// fetch EB foil cards
 	images.Find("li[class*=rarity_S-]").Each(func(cardI int, cardLi *goquery.Selection) {
 		wg.Add(1)
 		v := buildMap(cardLi, yytSetCode)
 		v.EBFoil = true
-		tmpCardChan <- waitCard{Card: v, Wg: &wg}
+		tmpCardChan <- v
+		numberOfCard = numberOfCard + 1
 	})
-	wg.Wait()
+	log.Println(numberOfCard, " for set: ", yytSetCode)
 }
 
 // GetCards function
@@ -135,9 +138,8 @@ func GetCards(series []string, kizu bool) map[string]Card {
 	// Get cards
 	fmt.Println("getcards")
 	fetchChannel := make(chan bool, maxLength)
-	tmpCardChan := make(chan waitCard, 10)
+	tmpCardChan := make(chan Card, 10)
 	cardMap := map[string]Card{}
-	var wg sync.WaitGroup
 
 	biri.ProxyStart()
 
@@ -146,13 +148,14 @@ func GetCards(series []string, kizu bool) map[string]Card {
 			select {
 			case waitCardS := <-tmpCardChan:
 				var cardID = ""
-				if waitCardS.Card.EBFoil {
-					cardID = waitCardS.Card.ID + "F"
+				if waitCardS.EBFoil {
+					cardID = waitCardS.ID + "F"
 				} else {
-					cardID = waitCardS.Card.ID
+					cardID = waitCardS.ID
 				}
-				cardMap[cardID] = waitCardS.Card
-				waitCardS.Wg.Done()
+				cardMap[cardID] = waitCardS
+				// log.Println(waitCardS.ID)
+				wg.Done()
 			}
 		}
 	}()
@@ -160,6 +163,9 @@ func GetCards(series []string, kizu bool) map[string]Card {
 	if len(series) == 0 {
 		filter := "ul[data-class=sell] .item_single_card .nav_list_second a"
 		var doc *goquery.Document
+
+		numberOfSet := 0
+
 		for {
 			proxy := biri.GetClient()
 
@@ -184,9 +190,11 @@ func GetCards(series []string, kizu bool) map[string]Card {
 					return
 				}
 
-				log.Printf("Nb %v / %v", i, urlSet)
+				numberOfSet = numberOfSet + 1
+				log.Printf("Nb %v / %v", numberOfSet, urlSet)
 				fetchChannel <- true
 				wg.Add(1)
+
 				go func(url string) {
 					fetchCards(strings.Join([]string{yuyuteiURL, url}, ""), tmpCardChan)
 					<-fetchChannel
