@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Akenaide/biri"
 	"github.com/PuerkitoBio/goquery"
@@ -86,6 +87,7 @@ func fetchCards(url string, tmpCardChan chan Card) {
 	var images *goquery.Document
 	var errCard error
 	var yytSetCode string
+	timer := 4
 	numberOfCard := 0
 
 	for {
@@ -107,6 +109,13 @@ func fetchCards(url string, tmpCardChan chan Card) {
 
 		yytSetCode = images.Find("input[name='item[ver]']").AttrOr("value", "undefined")
 		if yytSetCode == "undefined" {
+			if timer > 1000 {
+				log.Println("Skip for: ", url)
+				break
+			}
+			timer = timer + timer
+			log.Println("retry in ", timer, " second")
+			time.Sleep(time.Second * time.Duration(timer))
 			continue
 		}
 
