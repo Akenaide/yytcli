@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var goodRarity = []string{"RR", "R", "U", "C", "CC", "CR"}
+var goodRarity = []string{"RR", "R", "U", "C", "CC", "CR", "TD"}
 
 // getpriceCmd represents the getprice command
 var getpriceCmd = &cobra.Command{
